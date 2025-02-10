@@ -10,10 +10,9 @@ MOTOR_PIN_1 = 0 # Pin
 MOTOR_PIN_2 = 0 # Pin
 MOTOR_ENABLE_PIN = 0 # Pin
 
-MODE_AUTO = 0
-MODE_MANU = 1
-
-FAN_SPEED = 100
+FAN_ON_TEMPARATURE = 30
+BASE_FAN_SPEED = 40
+MANU_FAN_SPEED = 100
 
 class Button:
     def __init__(self, pin: int) -> None:
@@ -27,20 +26,19 @@ class Button:
             returnValue = True
 
         self.oldState = self.button.value()
-            return returnValue
+        return returnValue
 
 def flipMode(currentMode: int) -> bool:
     return not currentMode
 
-def getTemperature(dhtSensor: DHT22) -> float:
-    dhtSensor.measure()
-    return dhtSensor.temperature()
-
-def autoModeIsFanOn(dhtSensor: DHT22) -> bool:
-    return getTemperature(dhtSensor) > 30:
+def autoModeIsFanOn(temperature: int) -> bool:
+    return temperature > FAN_ON_TEMPARATURE
 
 def manuModeIsFanOn(powerButton: Pin, isFanOn: bool) -> bool:
     return not isFanOn if powerButton.isPress() else isFanOn
+
+def calculateFanSpeed(temperature) -> int:
+    return BASE_FAN_SPEED + ((FAN_ON_TEMPARATURE - temperature) * 0.5)
 
 if __name__ == "__main__":
     # sensor
@@ -60,16 +58,20 @@ if __name__ == "__main__":
     isFanOn = False
 
     while True:
+        dhtSensor.measure()
+
         if modeButton.isPress():
             isAutoMode = flipMode(isAutoMode)
 
         if isAutoMode:
-            isFanOn = autoModeIsFanOn(dhtSensor)
+            isFanOn = autoModeIsFanOn(dhtSensor.temperature)
         else:
             isFanOn = manuModeIsFanOn(powerButton, isFanOn)
 
-        if isFanOn:
-            fanMotor.forward(FAN_SPEED)
+        if isFanOn and isAutoMode:
+            fanMotor.forward(calculateFanSpeed(dhtSensor.temperature))
+        elif isFanOn and not isAutoMode:
+            fanMotor.forward(MANU_FAN_SPEED)
         else:
             fanMotor.stop()
 
